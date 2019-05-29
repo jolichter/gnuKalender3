@@ -1,0 +1,112 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,114,90)
+  Text = ("Einstellungen gnuKalender3")
+  Icon = Picture["icon:/small/tools"]
+  Resizable = False
+  { Frame1 Frame
+    MoveScaled(2,3,74,80)
+    Text = ("Farben")
+    { Label1 Label
+      MoveScaled(2,3,24,3.1429)
+      Text = ("Samstag")
+    }
+    { Label2 Label
+      MoveScaled(39,3,24,3.1429)
+      Text = ("Sonntag")
+    }
+    { Label3 Label
+      MoveScaled(2,41,24,3.1429)
+      Text = ("Feiertag")
+    }
+    { Label4 Label
+      MoveScaled(39,41,24,3.1429)
+      Text = ("Header")
+    }
+    { cocSamstag ColorChooser
+      MoveScaled(2,7,34,32)
+      ToolTip = ("Samstag")
+    }
+    { cocSonntag ColorChooser
+      MoveScaled(39,7,34,32)
+      ToolTip = ("Sonntag")
+    }
+    { cocFeiertag ColorChooser
+      MoveScaled(2,45,34,32)
+      ToolTip = ("Feiertag")
+    }
+    { cocHeader ColorChooser
+      MoveScaled(39,45,34,32)
+      ToolTip = ("Header")
+    }
+  }
+  { Frame2 Frame
+    MoveScaled(77,3,34,44)
+    Text = ("Sonstiges")
+    { Frame3 Frame
+      MoveScaled(3,7,28,17)
+      Text = ("Druckeranpassung")
+      { txtPrintX TextBox
+        MoveScaled(2,4,6,4)
+        Tag = "Standard 100"
+        ToolTip = ("Standard 100")
+        Text = ("X")
+        MaxLength = 3
+      }
+      { Label5 Label
+        MoveScaled(9,4,14,4)
+        Tag = "Standard 100"
+        ToolTip = ("Standard 100")
+        Text = ("Abstand links")
+      }
+      { txtPrintY TextBox
+        MoveScaled(2,8,6,4)
+        Tag = "Standard 300"
+        ToolTip = ("Standard 300")
+        Text = ("Y")
+        MaxLength = 3
+      }
+      { Label6 Label
+        MoveScaled(9,8,14,4)
+        Tag = "Standard 300"
+        ToolTip = ("Standard 300")
+        Text = ("Abstand oben")
+      }
+      { Label7 Label
+        MoveScaled(3,13,12,3)
+        Font = Font["Italic,-1"]
+        Text = ("0 = Reset")
+      }
+    }
+    { cbxWN CheckBox
+      MoveScaled(4,28,17,4)
+      ToolTip = ("Kalenderwoche")
+      Text = ("KW anzeigen")
+    }
+    { btnResetCol Button
+      MoveScaled(4,34,22,4)
+      Mouse = Mouse.Pointing
+      ToolTip = ("Farben auf Standard zurücksetzen")
+      Text = ("Reset Farben")
+    }
+  }
+  { lblVersion Label
+    MoveScaled(78,79,32,4)
+    Font = Font["Italic"]
+    Text = ("Version")
+    Alignment = Align.Center
+  }
+  { btnClose Button
+    MoveScaled(84,61,19,6)
+    Font = Font["+2"]
+    Mouse = Mouse.Pointing
+    Text = Shortcut(("Schließen"), "S")
+  }
+  { lblEinst TextLabel
+    MoveScaled(2,85.7143,110,4)
+    Font = Font["Bold"]
+    Text = ("Einstellungen gnuKalender3")
+    Alignment = Align.Center
+  }
+}

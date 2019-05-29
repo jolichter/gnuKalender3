@@ -1,0 +1,59 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,96,67)
+  Icon = Picture["kalender.gif"]
+  { mnuFile Menu
+    Text = ("&Datei")
+    { mnuSave Menu
+      Text = ("&Speichern")
+      Picture = Picture["icon:/small/save"]
+    }
+    { mnuLoad Menu
+      Text = ("&Laden")
+      Picture = Picture["icon:/small/open"]
+    }
+    { mnuConfig Menu
+      Text = ("&Einstellungen")
+      Picture = Picture["icon:/small/tools"]
+    }
+    { mnuInfo Menu
+      Text = ("&Info")
+      Picture = Picture["icon:/small/info"]
+    }
+    { mnuEmty Menu
+    }
+    { mnuEnd Menu
+      Text = ("&Beenden")
+      Picture = Picture["icon:/small/cancel"]
+    }
+  }
+  { cbxJahr ComboBox
+    MoveScaled(0,0,16,4)
+    ToolTip = ("wählen Sie ein Jahr für den Kalender aus")
+    ReadOnly = True
+    Text = ("Jahr")
+  }
+  { cbxLand ComboBox
+    MoveScaled(17,0,29,4)
+    ToolTip = ("wählen Sie ein Land für die Feiertage aus")
+    ReadOnly = True
+    Text = ("Land")
+  }
+  { btnPrint Button
+    MoveScaled(47,0,16,4)
+    Mouse = Mouse.Pointing
+    Text = ("Drucken...")
+    Picture = Picture["icon:/small/printer"]
+  }
+  { cbxTXTFeiertage CheckBox
+    MoveScaled(65,0,30,4)
+    Text = ("Feiertage als Text Anzeigen")
+  }
+  { ScrollView1 ScrollView
+    MoveScaled(0,4,94,57)
+    { TableView1 TableView
+      MoveScaled(0,0,92,55)
+    }
+  }
+}

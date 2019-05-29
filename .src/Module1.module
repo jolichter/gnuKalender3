@@ -1,0 +1,34 @@
+' Gambas module file
+
+Public Function ISOWN(InDate As Date) As Long
+'Zählweise nach ISO 8601
+'Die deutschsprachige Kalender-Industrie hält sich ausnahmslos an die internationale Norm ISO 8601,
+'die als letzten Tag der Woche den Sonntag bestimmt, statt des Samstags / Sonnabends / Sabbats, wie es IN der j üdisch-christlich-islamischen Tradition üblich ist.
+
+'Im Geltungsbereich der Normen des DIN Deutschen Instituts für Normung e. V. werden seit 1976 durch Normung folgende Regeln empfohlen:
+
+'    Jeden Montag und nur montags beginnt eine neue Kalenderwoche.
+'    Die erste Kalenderwoche ist diejenige, die mindestens vier Tage des neuen Jahres enthält.
+
+'Aus diesen Punkten ergeben sich folgende Eigenschaften:
+
+'    Es gibt keine unvollständigen Kalenderwochen, ausnahmslos jede KW enthält genau sieben Tage.
+'    Jedes Jahr hat entweder 52 oder 53 Kalenderwochen.
+'    Ein Jahr hat genau dann 53 Kalenderwochen, wenn es mit einem Donnerstag beginnt oder endet:
+'        Ein Normaljahr mit 53 Wochen beginnt und endet an einem Donnerstag.
+'        Ein Schaltjahr mit 53 Wochen beginnt entweder an einem Mittwoch und endet somit mit Donnerstag oder beginnt an einem Donnerstag und endet an einem Freitag.
+'    Der 4. Januar liegt immer in Kalenderwoche 1.
+'    Der 29., 30. und 31. Dezember können schon zur ersten Kalenderwoche des Folgejahres gehören.
+'    Der 1., 2. und 3. Januar können noch in der letzten Kalenderwoche des Vorjahres liegen.
+'    Der Donnerstag ist ausschlaggebend, zu welchem Jahr die Woche gezählt wird. Liegt er im neuen Jahr, ist es die Kalenderwoche 1.
+
+
+Dim D As Date
+Dim ISOWN As Integer
+
+  D = Date(Year(InDate - WeekDay(InDate) + 4), 1, 3)
+  ISOWN = Int((InDate - D + WeekDay(D) + 5) / 7)
+
+  Return ISOWN
+
+End Function

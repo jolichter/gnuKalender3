@@ -1,0 +1,31 @@
+' Gambas module file
+
+Public Function Ostern(Yr As Integer) As Date
+   Dim D As Integer
+   D = (((255 - 11 * (Yr Mod 19)) - 21) Mod 30) + 21
+   Return Date(Yr, 3, 1) + D + (D > 48) + 6 - ((Yr + Yr \ 4 + D + (D > 48) + 1) Mod 7)
+End
+
+
+' feste Feiertage
+  Public Neujahr As Date = Date(FMain.startJahr, 1, 1)
+   Public Heilige3Koenige As Date = Date(FMain.startJahr, 1, 6)
+    Public Maifeiertag As Date = Date(FMain.startJahr, 5, 1)
+     Public Europatag As Date = Date(FMain.startJahr, 5, 9)
+      Public NationalfeiertagLux As Date = Date(FMain.startJahr, 6, 23)
+       Public MariaHimmelfahrt As Date = Date(FMain.startJahr, 8, 15)
+        Public TagDeutscheEinheit As Date = Date(FMain.startJahr, 10, 3)
+         Public Reformationstag As Date = Date(FMain.startJahr, 10, 31)
+          Public Allerheiligen As Date = Date(FMain.startJahr, 11, 1)
+           Public Weihnachtstag1 As Date = Date(FMain.startJahr, 12, 25)
+            Public Weihnachtstag2 As Date = Date(FMain.startJahr, 12, 26)
+
+
+'PUBLIC FUNCTION Feiertage() AS String
+'DIM F AS String
+'F = "Neujahr: " & Format$(Date(modFeiertage.Neujahr), "dd.ddd")
+'RETURN F
+'END
+
+
+

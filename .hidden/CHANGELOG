@@ -1,0 +1,53 @@
+* Thu May 30 2019 Jo Lichter <jlichter@web.de> 19.5.21
+-bug: fix wrong bank holiday
+
+* Mon Jan 14 2019 Jo Lichter <jlichter@web.de> 19.1.20
+- add: Europatag 09. May
+
+* Fri Dec 21 2018 Jo Lichter <jlichter@web.de> 18.12.19
+- update: Qt5
+
+* Sat Apr 20 2013 Jo Lichter <jlichter@web.de> 13.4.18
+- bug: Kalenderwoche nach ISO 8601 berichtigt
+
+* Sun Aug 19 2012 Jo Lichter <jlichter@web.de> 12.8.17
+- update: small little things
+
+* Sun Aug 19 2012 Jo Lichter <jlichter@web.de> 12.8.16
+- update: Qt4
+
+* Sun Oct 23 2011 Jo Lichter <jlichter@web.de> 11.10.15
+- update: Debian6
+
+* Tue May 31 2011 Jo Lichter <jlichter@web.de> 11.5.14
+- update: 2011+2095 fällt Fronleichnam genau auf luxemburgischen Feiertag -> Anzeige ist nun OK
+
+* Sun Jan 31 2010 Jo Lichter <jlichter@web.de> 9.12.11
+- update: small little things
+
+* Tue Dec 29 2009 Jo Lichter <jlichter@web.de> 9.12.10
+- add: Scrollview
+
+* Wed Dec 23 2009 Jo Lichter <jlichter@web.de> 9.12.9
+- bug: ToolTip (Hilfetext) in den Einstellungen berichtigt
+
+* Sun Dec 13 2009 Jo Lichter <jlichter@web.de> 9.12.8
+- update: schneller Ausdruck mit hoher Auflösung
+
+* Sat Dec 05 2009 Jo Lichter <jlichter@web.de> 9.11.7
+- bug: Druckeranpassung behoben
+
+* Mon Nov 30 2009 Jo Lichter <jlichter@web.de> 9.11.6
+- add: Druckeranpassung
+
+* Sat Nov 28 2009 Jo Lichter <jlichter@web.de> 9.11.5
+- add: Feiertage als Text anzeigen
+
+* Sat Nov 28 2009 Jo Lichter <jlichter@web.de> 9.11.4
+- add: Einstellungen
+
+* Thu Nov 26 2009 Jo Lichter <jlichter@web.de> 9.11.3
+- add: Feiertage
+
+* Thu Nov 26 2009 Jo Lichter <jlichter@web.de> 9.11.2
+- Initial release

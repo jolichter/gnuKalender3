@@ -1,0 +1,100 @@
+' Gambas class file
+
+Public Sub Form_Open()
+lblVersion.text = "Version: " & Application.Version
+
+FEinstellungen.Border = True
+
+' Einstellungen laden
+cbxWN.Value = Settings["Einstellungen/WeekNumber", FMain.bolWN]
+txtPrintX.Text = Settings["Drucker/Xstart", FMain.intXstartF]
+txtPrintY.Text = Settings["Drucker/Ystart", FMain.intYstartF]
+cocSamstag.Value = Settings["Farben/Samstag", FMain.colSamstag]
+cocSonntag.Value = Settings["Farben/Sonntag", FMain.colSonntag]
+cocFeiertag.Value = Settings["Farben/Feiertag", FMain.colFeiertag]
+cocHeader.Value = Settings["Farben/Header", FMain.colHeader]
+
+' wenn Druckeranpassung 0 dann anpassen! siehe auch FMain Drucken()
+If txtPrintX.Text = 0 Or txtPrintY.Text = 0 Then
+FMain.intXstartF = 100
+FMain.intYStartF = 300
+txtPrintX.Text = FMain.intXstartF
+txtPrintY.Text = FMain.intYstartF
+Endif
+
+End
+
+
+
+
+Public Sub Form_Close()
+' Einstellungen speichern
+Settings["Einstellungen/WeekNumber"] = cbxWN.Value
+Settings["Drucker/Xstart"] = txtPrintX.Text
+Settings["Drucker/Ystart"] = txtPrintY.Text
+Settings["Farben/Samstag"] = cocSamstag.Value
+Settings["Farben/Sonntag"] = cocSonntag.Value
+Settings["Farben/Feiertag"] = cocFeiertag.Value
+Settings["Farben/Header"] = cocHeader.Value
+Settings.Save()
+
+' try falls das Feld leer ist
+Try FMain.intXstartF = txtPrintX.Text
+Try FMain.intYStartF = txtPrintY.Text
+
+FMain.Create_Kalender()
+
+End
+
+Public Sub btnClose_Click()
+Me.Close
+End
+
+Public Sub cbxWN_Click()
+If cbxWN.Enabled = True Then
+FMain.bolWN = True
+Else
+FMain.bolWN = False
+Endif
+End
+
+
+Public Sub btnResetCol_Click()
+cocSamstag.Value = Color.RGB(104, 131, 139)
+cocSonntag.Value = Color.RGB(104, 131, 139)
+cocFeiertag.Value = Color.RGB(50, 205, 50)
+cocHeader.Value = Color.RGB(205, 149, 12)
+
+Settings["Farben/Samstag"] = cocSamstag.Value
+Settings["Farben/Sonntag"] = cocSonntag.Value
+Settings["Farben/Feiertag"] = cocFeiertag.Value
+Settings["Farben/Header"] = cocHeader.Value
+End
+
+Public Sub txtPrintX_KeyPress()
+' nur Zahlen
+If key.Code >= 48 And key.Code <= 57 Then
+Else If key.Code = key.BackSpace Then
+Else If key.Code = key.Delete Then
+Else If key.Code = key.Tab Then
+Else If key.Code = key.Left Then
+Else If key.Code = key.Right Then
+Else
+Stop Event
+Endif
+End
+
+Public Sub txtPrintW_KeyPress()
+' nur Zahlen
+If key.Code >= 48 And key.Code <= 57 Then
+Else If key.Code = key.BackSpace Then
+Else If key.Code = key.Delete Then
+Else If key.Code = key.Tab Then
+Else If key.Code = key.Left Then
+Else If key.Code = key.Right Then
+Else
+Stop Event
+Endif
+End
+
+

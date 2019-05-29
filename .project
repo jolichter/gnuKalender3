@@ -1,0 +1,26 @@
+# Gambas Project File 3.0
+Title=gnuKalender3
+Startup=FMain
+Icon=kalender.gif
+Version=19.5.21
+Component=gb.image
+Component=gb.qt5
+Component=gb.form
+Component=gb.settings
+Component=gb.qt5.ext
+Description="gnuKalender3 ist ein DIN-A4 Jahreskalender.\nFeiertage Deutschland und Luxemburg - Kalenderwoche nach ISO8601 - Felder sind editierbar und können gespeichert werden. Homepage: JoLichter.de"
+Authors="JoLichter.de"
+TabSize=2
+Translate=1
+Language=de
+Maintainer=Jo Lichter
+Vendor=jolichter
+Address=jlichter@web.de
+Url=https://jolichter.de
+License=Freeware
+PackageName=gnukalender3-19.5.21
+Packager=1
+Systems=autotools,debian
+Menus=debian:"Applications/Office"
+Categories=debian:"Calendar;Office"
+Groups=debian:"kde"

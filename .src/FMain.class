@@ -1,0 +1,980 @@
+' Gambas class file
+
+' gnuKalender3 is a DIN-A4 annual calendar.\nBank holidays Germany and Luxembourg - Calendar week shows in ISO8601 - Fields are editable and you can save that. Homepage: www.JoLichter.de
+'
+' language testen:
+'LANG=C /usr/Bin/gnuKalender3.gambas
+'  oder
+'LANG=en_US.UTF-8 /usr/Bin/gnuKalender3.gambas
+'
+'
+Public startJahr As Integer
+Public intXstartF As Integer '100 (Druckerabstand von links)
+Public intYstartF As Integer '300 (Druckerabstand von oben)
+Public bolWN As Boolean
+Public bolTXTFeiertage As Boolean
+Public colSamstag As Integer
+Public colSonntag As Integer
+Public colFeiertag As Integer
+Public colHeader As Integer
+Public colFarbe As Integer ' Drucker
+
+Private strLand As String
+Private HeaderFont As Font = Font["Sans,Bold,9"]
+Private JahrFont As Font = Font["Sans,Bold,12"]
+Private ZellenFont As Font = Font["Sans, Normal,8"]
+
+Private myPrinter As New Printer
+
+
+Public Sub mnuInfo_Click()
+ Message.Info(("gnuKalender3 ist ein freier DIN-A4 Kalender für Linux") & Chr(10) & "Version: " & Application.Version & Chr(10) & "www.JoLichter.de")
+End
+
+Public Sub _new()
+ ' ME.Center
+End
+
+Public Sub Form_Close()
+
+Settings["Einstellungen/Land"] = cbxLand.Text
+Settings["Einstellungen/TXTFeiertage"] = cbxTXTFeiertage.Value
+
+End
+
+
+Public Sub Form_Resize()
+' Scrollbar anpassen, falls nötig
+ScrollView1.ScrollBar = 3 ' both
+ScrollView1.Width = Me.Width
+ScrollView1.Height = Me.Height - 50
+End
+
+
+Public Sub Form_Open()
+Dim i As Integer
+
+ ' Combobox cbxJahr mit Jahreszahlen füllen
+  For i = 1900 To 2199
+  cbxJahr.Add(i)
+  Next
+  ' aktuelles Jahr in der ComboBox auswählen
+  i = Year(Now)
+  cbxJahr.text = i
+  startJahr = i
+
+ ' Combobox cbxLand mit den Ländern füllen
+        cbxLand.Add("Luxemburg")
+        cbxLand.Add("----------")   ' siehe auch SUB Drucken()
+        cbxLand.Add("Baden-Württemberg")
+        cbxLand.Add("Bayern")
+        cbxLand.Add("Berlin")
+        cbxLand.Add("Brandenburg")
+        cbxLand.Add("Hansestadt Bremen")
+        cbxLand.Add("Hansestadt Hamburg")
+        cbxLand.Add("Hessen")
+        cbxLand.Add("Mecklenburg-Vorpommern")
+        cbxLand.Add("Niedersachsen")
+        cbxLand.Add("Nordrhein-Westfalen")
+        cbxLand.Add("Rheinland-Pfalz")
+        cbxLand.Add("Saarland")
+        cbxLand.Add("Freistaat Sachsen")
+        cbxLand.Add("Sachsen-Anhalt")
+        cbxLand.Add("Schleswig-Holstein")
+        cbxLand.Add("Freistaat Thüringen")
+
+
+  Me.Width = 1024
+  Me.Height = 768
+
+
+cbxLand.Text = Settings["Einstellungen/Land", strLand]
+cbxTXTFeiertage.Value = Settings["Einstellungen/TXTFeiertage", bolTXTFeiertage]
+
+
+cbxLand_Click() ' starte Kalender und schreibe das Land in den Kalender
+cbxJahr.SetFocus()
+
+End
+
+Public Sub cbxJahr_Click()
+startJahr = cbxJahr.text
+Create_Kalender()
+End
+
+
+Public Sub cbxLand_Click()
+Create_Kalender()
+End
+
+
+
+Public Sub Create_Kalender()
+Dim i, m, leapyear, intWN As Integer
+Dim datMonatStart, datDatumStart As Date
+bolWN = Settings["Einstellungen/WeekNumber", FMain.bolWN]
+
+TableView1.Clear()
+
+Me.Text = "gnuKalender3 " & startJahr
+datDatumStart = Date(startJahr, 1, 1)
+
+
+' Farben setzen
+Try colSamstag = Settings["Farben/Samstag"]
+If Error Then colSamstag = Color.RGB(104, 131, 139)
+Try colSonntag = Settings["Farben/Sonntag"]
+If Error Then colSonntag = Color.RGB(104, 131, 139)
+Try colFeiertag = Settings["Farben/Feiertag"]
+If Error Then colFeiertag = Color.RGB(50, 205, 50)
+Try colHeader = Settings["Farben/Header"]
+If Error Then colHeader = Color.RGB(205, 149, 12)
+
+
+' Schaltjahr?
+If startJahr Mod 400 = 0 Then
+    leapyear = 1 'ist ein Schaltjahr
+  Else If startJahr Mod 100 = 0 Then
+    leapyear = 0 'ist eine Jahrhundertwende, aber kein Schaltjahr
+  Else If startJahr Mod 4 = 0 Then
+    leapyear = 1 'ist ein Schaltjahr
+  Else
+    leapyear = 0 'ist kein Schaltjahr
+  Endif
+
+
+  TableView1.Columns.Count = 12
+  TableView1.Rows.Count = 32
+  TableView1.Columns.Width = 84
+  TableView1.Rows.Height = 21
+  TableView1.Rows[0].Height = 40
+  TableView1.Width = 1014
+  TableView1.Height = 700
+  TableView1.Font = ZellenFont
+
+ ' schreibe das Jahr in den Kalender
+  With TableView1[31, 1]
+  .Text = startJahr
+  .Font = JahrFont
+  .Alignment = 3
+  End With
+  TableView1[30, 1].Alignment = 3 ' Land mittig setzen
+
+
+For m = 0 To 11 ' Month Header
+ datMonatStart = Date(startJahr, m + 1, 1)
+   TableView1[0, m].Text = Format$(Date(datMonatStart), "mmmm")
+   TableView1[0, m].Alignment = 3
+   TableView1[0, m].Background = colHeader
+   TableView1[0, m].Foreground = Color.White
+   TableView1[0, m].Font = HeaderFont
+Next
+
+
+For i = 1 To 365 + leapyear
+Select Case i
+
+     Case 1 To 1 ' 01.Januar
+     If bolWN = True Then
+
+     ' Kalenderwoche nach ISO 8601
+     If Module1.ISOWN(Date(datDatumStart + i)) = 0 Then
+     intWN = Module1.ISOWN(Date(datDatumStart + i - 2)) ' KW vom Jahr zuvor
+     Else
+     intWN = Module1.ISOWN(Date(datDatumStart + i))
+     Endif
+     TableView1[i, 0].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & intWN
+
+     Else
+     TableView1[i, 0].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i, 0].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i, 0].Background = colSonntag
+
+     Case 2 To 31 ' ab 02.Januar
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i, 0].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i, 0].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i, 0].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i, 0].Background = colSonntag
+
+     Case 32 To 59 + leapyear ' Februar
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 31, 1].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 31, 1].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 31, 1].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 31, 1].Background = colSonntag
+
+     Case 60 To 90 + leapyear ' März
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 59 - leapyear, 2].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 59 - leapyear, 2].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 59 - leapyear, 2].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 59 - leapyear, 2].Background = colSonntag
+
+     Case 91 To 120 + leapyear ' April
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 90 - leapyear, 3].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 90 - leapyear, 3].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 90 - leapyear, 3].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 90 - leapyear, 3].Background = colSonntag
+
+     Case 121 To 151 + leapyear ' Mai
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 120 - leapyear, 4].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 120 - leapyear, 4].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 120 - leapyear, 4].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 120 - leapyear, 4].Background = colSonntag
+
+     Case 152 To 181 + leapyear ' Juni
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 151 - leapyear, 5].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 151 - leapyear, 5].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 151 - leapyear, 5].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 151 - leapyear, 5].Background = colSonntag
+
+     Case 182 To 212 + leapyear ' Juli
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 181 - leapyear, 6].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 181 - leapyear, 6].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 181 - leapyear, 6].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 181 - leapyear, 6].Background = colSonntag
+
+     Case 213 To 243 + leapyear ' August
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 212 - leapyear, 7].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 212 - leapyear, 7].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 212 - leapyear, 7].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 212 - leapyear, 7].Background = colSonntag
+
+     Case 244 To 273 + leapyear ' September
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 243 - leapyear, 8].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 243 - leapyear, 8].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 243 - leapyear, 8].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 243 - leapyear, 8].Background = colSonntag
+
+     Case 274 To 304 + leapyear ' Oktober
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 273 - leapyear, 9].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 273 - leapyear, 9].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 273 - leapyear, 9].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 273 - leapyear, 9].Background = colSonntag
+
+     Case 305 To 334 + leapyear ' November
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 304 - leapyear, 10].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 304 - leapyear, 10].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 304 - leapyear, 10].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 304 - leapyear, 10].Background = colSonntag
+
+     Case 335 To 365 + leapyear ' Dezember
+     If bolWN = True And WeekDay(Date(datDatumStart + i - 1)) = 1 Then
+     TableView1[i - 334 - leapyear, 11].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd") & "   KW" & Module1.ISOWN(Date(datDatumStart + i))
+     Else
+     TableView1[i - 334 - leapyear, 11].Text = Format$(Date(datDatumStart + i - 1), "dd.ddd")
+     Endif
+     If WeekDay(Date(datDatumStart + i - 1)) = 6 Then TableView1[i - 334 - leapyear, 11].Background = colSamstag
+     If WeekDay(Date(datDatumStart + i - 1)) = 0 Then TableView1[i - 334 - leapyear, 11].Background = colSonntag
+
+    End Select
+Next
+
+
+ ' schreibt das Land in den Kalender
+ ' WITH TableView1[30, 1]
+ '.Text = cbxLand.Text
+ '.Font = ZellenFont
+ '.Alignment = 3
+ ' END WITH
+
+  'IF Len(cbxLand.text) < 12 THEN ' Wenn Land zu gross dann kürzen
+  'TableView1[30, 1].text = cbxLand.Text
+  'ELSE
+  'TableView1[30, 1].Text = Left(cbxLand.Text, 5) & "." & Right(cbxLand.Text, 6)
+  'ENDIF
+
+
+Feiertage()
+End
+
+Public Sub Feiertage()
+
+' ------------ Farben Feiertage ------------
+Select Case cbxLand.Text
+
+     Case "Luxemburg"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Europatag), Month(modFeiertage.Europatag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.NationalfeiertagLux), Month(modFeiertage.NationalfeiertagLux) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Baden-Württemberg"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Bayern"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Berlin"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Brandenburg"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Hansestadt Bremen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Hansestadt Hamburg"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Hessen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.NationalfeiertagLux), Month(modFeiertage.NationalfeiertagLux) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Mecklenburg-Vorpommern"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Niedersachsen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Nordrhein-Westfalen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Rheinland-Pfalz"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Saarland"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Freistaat Sachsen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Sachsen-Anhalt"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+     Case "Schleswig-Holstein"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+
+     Case "Freistaat Thüringen"
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Background = colFeiertag
+'TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Background = colFeiertag
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Background = colFeiertag
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Background = colFeiertag ' Ostersonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Background = colFeiertag ' Ostermontag
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Background = colFeiertag ' Karfreitag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Background = colFeiertag 'ChristiHimmelfahrt
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Background = colFeiertag ' Pfingstsonntag
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Background = colFeiertag ' Pfingstmontag
+'TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Background = colFeiertag ' Fronleichnam
+
+End Select
+
+If bolTXTFeiertage = True Then
+' Feiertage als Text in den Kalender schreiben
+' feste Feiertage
+TableView1[Day(modFeiertage.Neujahr), Month(modFeiertage.Neujahr) - 1].Text = "Neujahr"
+TableView1[Day(modFeiertage.Heilige3Koenige), Month(modFeiertage.Heilige3Koenige) - 1].Text = "Hlg3Könige"
+TableView1[Day(modFeiertage.Maifeiertag), Month(modFeiertage.Maifeiertag) - 1].Text = "Maifeiertag"
+TableView1[Day(modFeiertage.Europatag), Month(modFeiertage.Europatag) - 1].Text = "Europatag"
+TableView1[Day(modFeiertage.NationalfeiertagLux), Month(modFeiertage.NationalfeiertagLux) - 1].Text = "Feiertag Lux."
+TableView1[Day(modFeiertage.MariaHimmelfahrt), Month(modFeiertage.MariaHimmelfahrt) - 1].Text = "MariaHimmel."
+TableView1[Day(modFeiertage.TagDeutscheEinheit), Month(modFeiertage.TagDeutscheEinheit) - 1].Text = "TagDeuEinh."
+TableView1[Day(modFeiertage.Reformationstag), Month(modFeiertage.Reformationstag) - 1].Text = "Reforma.tag"
+TableView1[Day(modFeiertage.Allerheiligen), Month(modFeiertage.Allerheiligen) - 1].Text = "Allerheiligen"
+TableView1[Day(modFeiertage.Weihnachtstag1), Month(modFeiertage.Weihnachtstag1) - 1].Text = "Xmas1"
+TableView1[Day(modFeiertage.Weihnachtstag2), Month(modFeiertage.Weihnachtstag2) - 1].Text = "Xmas2"
+
+' bewegliche Feiertage
+TableView1[Day(modFeiertage.Ostern(startJahr)), Month(modFeiertage.Ostern(startJahr)) - 1].Text = "Ostersonntag"
+TableView1[Day(modFeiertage.Ostern(startJahr) + 1), Month(modFeiertage.Ostern(startJahr) + 1) - 1].Text = "Ostermontag"
+TableView1[Day(modFeiertage.Ostern(startJahr) - 2), Month(modFeiertage.Ostern(startJahr) - 2) - 1].Text = "Karfreitag"
+TableView1[Day(modFeiertage.Ostern(startJahr) + 39), Month(modFeiertage.Ostern(startJahr) + 39) - 1].Text = "Chr.Himmelf."
+TableView1[Day(modFeiertage.Ostern(startJahr) + 49), Month(modFeiertage.Ostern(startJahr) + 49) - 1].Text = "Pfingstson."
+TableView1[Day(modFeiertage.Ostern(startJahr) + 50), Month(modFeiertage.Ostern(startJahr) + 50) - 1].Text = "Pfingstmon."
+'2011 und 2095 fällt Fronleichnam genau auf dem luxemburgischen Feiertag, darum:
+If cbxLand.Text <> "Luxemburg" Then TableView1[Day(modFeiertage.Ostern(startJahr) + 60), Month(modFeiertage.Ostern(startJahr) + 60) - 1].Text = "Fronleichnam"
+Endif
+End
+
+Public Sub cbxTXTFeiertage_Click()
+
+If cbxTXTFeiertage.Value = True Then
+bolTXTFeiertage = True
+Else
+bolTXTFeiertage = False
+Endif
+Create_Kalender()
+End
+
+
+
+Public Sub TableView1_Click()
+ TableView1.Edit
+End
+
+Public Sub TableView1_Save(Row As Integer, Column As Integer, Value As String)
+  TableView1[Row, Column].Text = Value
+End
+
+
+Public Sub mnuEnd_Click()
+Me.CLOSE
+End
+
+
+Public Sub btnPrint_Click()
+' DIN-A4 600dpi:
+' x=horizontal (4961 Pixel) 210mm -> 1mm = 24 Pixel
+' y=vertikal   (7016 Pixel) 297mm -> 1mm = 24 Pixel
+
+
+Object.Attach(myPrinter, Me, "myPrinter")
+
+ If myPrinter.Configure() = True Then Return
+
+  With myPrinter
+    .FirstPage = 0
+    .Orientation = myPrinter.Landscape 'Querformat
+    .Paper = myPrinter.A4
+    .Resolution = 600
+    .Count = 1 ' nur eine Seite!
+    '.NumCopies = 1
+    '.OutputFile = "/home/USER/myPrinter.pdf"
+    .Print
+  End With
+
+End
+
+Public Sub myPrinter_Begin()
+  'myPrinter.NumCopies = 1
+End
+
+
+Public Sub myPrinter_Draw()
+Dim h, r, c As Integer
+Dim intXstart, intYStart, intRow, intCol, intRowNext, intColNext, intWidthF, intHeightF, intHeaderHeight, intHeaderLineWidth, intLineWidth, intTxtLen As Integer
+
+Inc Application.Busy
+
+' wenn Druckeranpassung 0 dann anpassen! siehe auch FEinstellungen Form_Open()
+Try intXstartF = Settings["Drucker/Xstart"] ' Druckerrand Links(fester Wert)
+Try intYStartF = Settings["Drucker/Ystart"] ' Druckerrand Oben (fester Wert)
+
+If intXstartF = 0 Or intYStartF = 0 Then
+  intXstartF = 100
+  intYStartF = 300
+  Settings["Drucker/Xstart"] = intXstartF
+  Settings["Drucker/Ystart"] = intYstartF
+Endif
+
+intXstart = intXstartF    ' Start von Links
+intYStart = intYStartF    ' Start von Oben
+
+intWidthF = 550           ' Rahmenbreite (fester Wert)
+intColNext = intWidthF    ' Nächste Rahmenspalte
+intHeightF = 130          ' Rahmenhöhe (fester Wert)
+intRowNext = intHeightF   ' Nächste Rahmenreihe
+intLineWidth = 5          ' Linendicke
+
+intHeaderLineWidth = 8    ' Header Linendicke
+intHeaderHeight = 180     ' Header Höhe
+
+intRow = 0        ' Tabelle Reihe
+intCol = 0        ' Tabelle Spalte
+
+
+
+' Kalender Jahr und Land
+Paint.Font = JahrFont
+Paint.Brush = Paint.Color(Color.Black)
+Paint.Text(cbxJahr.Text, intXstartF + 50, intYStartF - 100)
+If cbxLand.Text <> "----------" Then paint.Text(cbxLand.Text, intXstartF + 400, intYStartF - 100)
+Paint.Fill
+
+
+' Header
+For h = 0 To 11
+  ' Header füllen
+  Paint.Brush = Paint.Color(colHeader)
+  Paint.Rectangle(intXstart, intYStart, intWidthF, intHeaderHeight)
+  Paint.Fill
+
+  ' Header Rahmen
+  With Paint
+    .Brush = Paint.Color(Color.Black)
+    .LineWidth = intHeaderLineWidth
+    .Rectangle(intXstart, intYStart, intWidthF, intHeaderHeight)
+    .Stroke
+  End With
+
+ ' Headertext
+ With Paint
+    .Brush = Paint.Color(Color.White)
+    .Font = HeaderFont
+    .Text(TableView1[intRow, intCol].Text, intXstart, intYStart, intWidthF, intHeaderHeight, Align.Center)
+    .Fill
+ End With
+
+  ' nächster rechts
+  intXstart = intXstart + intColNext
+  intCol = intCol + 1
+Next 'h
+
+
+
+
+' -------------------------------------------------------
+intXstart = intXstartF
+
+For c = 0 To 11 ' Spalten
+intCol = 0
+intRow = 1
+intYStart = intYStartF + intHeaderHeight + 50 ' Start unter dem Header
+intCol = intCol + c
+If c > 0 Then intXstart = intXstart + intColNext
+
+For r = 0 To 30 ' Reihen
+
+
+' Farben auslesen
+colFarbe = TableView1[intRow + r, intCol].Background
+
+If colFarbe < 0 Then  ' sonst werden die Felder sw
+  Paint.Brush = Paint.Color(Color.White)
+Else
+  Paint.Brush = Paint.Color(colFarbe)
+Endif
+
+Paint.Rectangle(intXstart, intYStart, intWidthF, intHeightF)
+Paint.Fill
+
+
+  ' Rahmen
+  With Paint
+    .Brush = Paint.Color(Color.Black)
+    .LineWidth = intLineWidth
+    .Rectangle(intXstart, intYStart, intWidthF, intHeightF)
+    .Stroke
+  End With
+
+
+ ' Text
+ With Paint
+    .Font = ZellenFont
+    .Brush = Paint.Color(Color.Black)
+    .Text(TableView1[intRow + r, intCol].Text, intXstart + 20, intYStart + 90) ' Text etwas vom Rahmen weg
+    .Fill
+ End With
+
+
+intYStart = intYStart + intRowNext
+
+Next 'r
+Next 'c
+
+
+Paint.End
+Dec Application.Busy
+
+End
+
+Public Sub myPrinter_End()
+  'Message.Info("Seite wurde an den Drucker gesendet")
+End
+
+
+Public Sub mnuSave_Click()
+Dim s, z As Integer
+Dim strTemp As String
+
+TableView1.Save()
+
+strTemp = cbxJahr.Text & Chr(124) ' |
+For z = 0 To 31
+For s = 0 To 11
+If z = 31 And s = 11 Then
+strTemp = strTemp & TableView1[z, s].Text
+Else
+strTemp = strTemp & TableView1[z, s].Text & Chr(124)
+Endif
+Next
+'strTemp = strTemp & Chr(10) ' Zeilenumbruch
+Next
+
+  Dialog.Filter = ["*.csv", "CSV Files"]
+  Dialog.Path = User.Home & "/gnuKalender3_" & startJahr & ".csv"
+  Dialog.Title = "gnuKalender3 speichern"
+  If Dialog.SaveFile() Then Return
+  File.Save(Dialog.Path, strTemp)
+Catch
+  Message.Info(Error.Text)
+End
+
+
+
+Public Sub mnuLoad_Click()
+Dim s, z, x As Integer
+Dim strListe As String[]
+Dim strTemp, strCell As String
+Dim bolJahr As Boolean = False
+s = 0
+z = 0
+
+  Dialog.Filter = ["*.csv", "CSV Files"]
+  Dialog.Path = User.Home
+  Dialog.Title = "gnuKalender3 laden"
+  If Dialog.OpenFile() Then Return
+  strTemp = Trim$(File.Load(Dialog.Path))
+
+strListe = Split(strTemp, Chr(124))
+strTemp = ""
+For Each strCell In strListe
+
+ ' das Jahr lesen und den Kalender darauf einstellen
+If bolJahr = False Then
+cbxJahr.text = strCell
+startJahr = strCell
+TableView1.Clear()
+Create_Kalender()
+cbxJahr.SetFocus()
+bolJahr = True
+Else
+
+TableView1[z, s].Text = strCell
+s = s + 1
+If s > 11 Then
+s = 0
+z = z + 1
+Endif
+
+Endif
+Next
+
+Catch
+  Message.Info(Error.Text)
+End
+
+Public Sub mnuConfig_Click()
+  FEinstellungen.ShowDialog()
+End
+
+
+' Beispiel
+'GridView1[3, 1].Picture = Picture[Application.Path & "/img/ledoff2.png"]
+
